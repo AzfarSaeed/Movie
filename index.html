@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#e6dcf5">
+  <title>Movie Date?</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    /* Palette: edit these to make it yours. */
+    :root {
+      --purple-light: #efe7fa; --purple: #e6dcf5; --purple-edge: #d9c8f0;
+      --ink: #5b3a8c; --purple-line: #b89ed5; --bubble: #fcf9ff;
+      --red-light: #a31d33; --red: #8b1a2b; --red-edge: #5e1020;
+      --cream: #fff0f3; --white: #fff; --shadow: #44254622;
+      --yes-soft: #4cbf6a; --yes: #287f46; --yes-dark: #216d3a;
+      --no-soft: #e5586a; --no: #bc3b50; --no-dark: #a52e42;
+      --fur: #fff5e6; --fur-shadow: #efdbc9; --cat-line: #a57882;
+      --eye: #503344; --eye-white: #fffcf8; --blush: #f59eaf;
+      --bow: #f29bb9; --bow-dark: #d36591; --ear: #f4bdc8;
+      --mouth: #b85372; --tear: #a8dce9; --gold: #f4d48d;
+      --lavender: #d6bff4; --pink: #ffc4d6;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100dvh; background: var(--purple);
+      color: var(--ink); font-family: 'Press Start 2P', 'Courier New', monospace; }
+    button { font: inherit; -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, h2:focus-visible { outline: 3px solid var(--ink); outline-offset: 6px; }
+    [hidden] { display: none !important; }
+    .backdrop, .pattern { position: fixed; inset: 0; pointer-events: none; }
+    .backdrop { z-index: -3; background: radial-gradient(ellipse at 50% 25%, var(--purple-light), var(--purple) 55%, var(--purple-edge)); }
+    .backdrop::after { content: ''; position: absolute; inset: 0; opacity: 0;
+      background: radial-gradient(ellipse at 50% 30%, var(--red-light), var(--red) 52%, var(--red-edge));
+      transition: opacity 750ms ease; }
+    body.celebrating .backdrop::after { opacity: 1; }
+    .pattern { z-index: -2; opacity: .15; background-image: radial-gradient(var(--purple-line) 1.4px, transparent 1.4px);
+      background-size: 30px 30px; animation: pattern-drift 28s ease-in-out infinite alternate;
+      transition: opacity 750ms; }
+    body.celebrating .pattern { background-image: radial-gradient(var(--pink) 1px, transparent 1px); opacity: .09; }
+    @keyframes pattern-drift { to { transform: translateY(-12px); } }
+    /* The question stays untransformed so the No button is viewport-fixed. */
+    .screen { min-height: 100dvh; display: grid; place-items: center; padding: 90px 20px; text-align: center; }
+    .question-content { display: flex; flex-direction: column; align-items: center; gap: 22px; width: 100%; }
+    .eyebrow { margin: 0; font-size: clamp(8px, 1.1vw, 10px); line-height: 1.8; letter-spacing: .12em; }
+    h1, h2 { margin: 0; font-size: clamp(10px, 2.25vw, 23px); line-height: 1.9;
+      letter-spacing: -.025em; text-wrap: balance; }
+    h1 { text-shadow: 0 2px var(--white); }
+    #question-screen { transition: opacity 350ms ease; }
+    #question-screen.leaving { opacity: 0; pointer-events: none; }
+    .mascot-area { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .speech { margin: 0 0 2px; min-width: 108px; padding: 12px 15px; border: 1px solid var(--purple-line);
+      border-radius: 16px 16px 16px 4px; background: var(--bubble); color: var(--ink);
+      font-size: 9px; line-height: 1.6; box-shadow: 0 4px 12px var(--shadow); }
+    .mascot { width: clamp(145px, 29dvh, 245px); aspect-ratio: 1; }
+    .cat { display: block; width: 100%; height: 100%; overflow: visible; shape-rendering: crispEdges; image-rendering: pixelated; filter: drop-shadow(0 8px 0 var(--shadow)); }
+    .cat-float { transform-origin: 150px 260px; animation: breathe 3.5s ease-in-out infinite; }
+    .cat-tilt { transform-origin: 150px 170px; }
+    .fur { fill: var(--fur); stroke: var(--cat-line); stroke-width: 6; stroke-linejoin: miter; }
+    .ear-inner { fill: var(--ear); }
+    .ear { transition: transform 450ms ease; }
+    .ear-left { transform-origin: 82px 122px; }
+    .ear-right { transform-origin: 218px 122px; }
+    .eye-white { fill: var(--eye-white); stroke: var(--cat-line); stroke-width: 3; }
+    .pupil { fill: var(--eye); }
+    .shine { fill: var(--white); }
+    .eye-shape { transform-box: fill-box; transform-origin: center; transition: transform 350ms; }
+    .blink { transform-box: fill-box; transform-origin: center; }
+    .blinking .blink { animation: blink 160ms ease-in-out; }
+    .blush { fill: var(--blush); opacity: .65; transition: opacity 300ms; }
+    .line { fill: none; stroke: var(--eye); stroke-width: 6; stroke-linecap: square; stroke-linejoin: miter; }
+    .brow, .sad-mouth, .happy-mouth, .happy-eyes, .tear, .sniff, .extra-shine { opacity: 0; }
+    .brow { stroke: var(--cat-line); transition: transform 300ms, opacity 300ms; }
+    .sad .brow, .sad .sad-mouth, .sad .extra-shine { opacity: 1; }
+    .sad .idle-mouth, .happy .idle-mouth { opacity: 0; }
+    .sad .blush { opacity: .36; }
+    .sad .eye-shape { transform: scale(1.06); }
+    .sad .ear-left { transform: rotate(-9deg); }
+    .sad .ear-right { transform: rotate(9deg); }
+    .sad .tear-one { animation: tear 1.9s ease-in infinite; }
+    .sad[data-level="2"] .ear-left, .sad[data-level="3"] .ear-left { transform: rotate(-17deg); }
+    .sad[data-level="2"] .ear-right, .sad[data-level="3"] .ear-right { transform: rotate(17deg); }
+    .sad[data-level="2"] .tear-two, .sad[data-level="3"] .tear-two { animation: tear 1.9s .7s ease-in infinite; }
+    .sad[data-level="3"] .sniff { opacity: 1; }
+    .sad[data-level="3"] .blush { opacity: .2; }
+    .sad[data-level="3"] .brow-left { transform: translateY(-3px) rotate(-3deg); transform-origin: 100px 120px; }
+    .sad[data-level="3"] .brow-right { transform: translateY(-3px) rotate(3deg); transform-origin: 200px 120px; }
+    .happy .open-eyes, .happy .brow, .happy .sad-mouth, .happy .tear, .happy .sniff { display: none; }
+    .happy .happy-eyes, .happy .happy-mouth, .happy .blush { opacity: 1; }
+    .happy .ear-left { transform: rotate(6deg); }
+    .happy .ear-right { transform: rotate(-6deg); }
+    .happy .cat-float { animation: joyful 850ms ease-in-out infinite; }
+    .reacting .cat-wobble { transform-origin: 150px 220px; animation: wobble 350ms ease-in-out; }
+    @keyframes breathe { 50% { transform: translateY(-6px); } }
+    @keyframes blink { 50% { transform: scaleY(.07); } }
+    @keyframes tear { 0% { opacity: 0; transform: translateY(-4px); } 20% { opacity: .9; } 100% { opacity: 0; transform: translateY(34px); } }
+    @keyframes joyful { 50% { transform: translateY(-12px); } }
+    @keyframes wobble { 25%, 75% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+    .buttons { display: flex; justify-content: center; gap: 18px; }
+    .button-slot { width: clamp(112px, 17vw, 145px); height: 50px; }
+    .answer { width: 100%; height: 50px; border: 0; border-radius: 999px; color: var(--white);
+      font-size: 12px; cursor: pointer; box-shadow: 0 6px 0 var(--button-shadow), 0 10px 22px var(--shadow);
+      transition: transform 160ms, box-shadow 160ms; touch-action: manipulation; }
+    .yes { --button-shadow: var(--yes-dark); background: linear-gradient(var(--yes), var(--yes-dark)); border-top: 2px solid var(--yes-soft); }
+    .no { --button-shadow: var(--no-dark); background: linear-gradient(var(--no), var(--no-dark)); border-top: 2px solid var(--no-soft); z-index: 10; }
+    .answer:hover { transform: translateY(-2px); }
+    .answer:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--button-shadow); }
+    .answer:disabled { cursor: default; }
+    .hint { margin: 0; font-size: 8px; line-height: 1.8; }
+    /* Celebration: scattered stickers surround a clear central message. */
+    #success-screen { position: relative; isolation: isolate; color: var(--cream); padding-inline: 62px; }
+    .success-content { position: relative; z-index: 1; pointer-events: none; width: min(100%, 730px); display: flex; flex-direction: column; align-items: center;
+      gap: 25px; text-shadow: 0 3px 0 var(--red-edge); animation: entrance 700ms cubic-bezier(.16, 1, .3, 1) both; }
+    .success-content .mascot { width: min(100%, clamp(175px, 38dvh, 310px)); }
+    .success-content .happy .cat-float { animation-duration: 2.3s; }
+    .success-content h2 { outline-color: var(--cream); }
+    .success-note { font-size: clamp(8px, 1.15vw, 11px); line-height: 2.2; margin: 0; }
+    @keyframes entrance { from { opacity: 0; transform: translateY(18px) scale(.92); } to { opacity: 1; transform: none; } }
+    /* Above the central layout box: every scattered sticker receives clicks. */
+    .stickers { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+    .sticker-anchor { position: absolute; width: 44px; height: 44px; margin: -22px; }
+    .sticker-float { width: 100%; height: 100%; animation: float 5s ease-in-out infinite; animation-delay: var(--delay); }
+    .sticker { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent;
+      font-family: sans-serif; cursor: pointer; pointer-events: auto; touch-action: manipulation;
+      animation: sway var(--duration) var(--delay) ease-in-out infinite; }
+    .sticker:focus-visible { outline-color: var(--cream); border-radius: 50%; }
+    .sticker-icon { pointer-events: none; display: block; font-size: var(--size); line-height: 1; filter: drop-shadow(0 0 7px var(--pink)); transition: opacity 180ms, transform 180ms; }
+    .sticker:hover .sticker-icon { transform: scale(1.17) rotate(9deg); }
+    .sticker.popped .sticker-icon { transform: scale(.1) rotate(35deg); opacity: 0; }
+    .sticker-message {
+      position: fixed; z-index: 40; width: max-content; max-width: min(260px, calc(100vw - 32px));
+      margin: 0; padding: 15px 18px; border: 2px solid var(--pink); border-radius: 19px;
+      background: var(--cream); color: var(--red-edge); box-shadow: 0 8px 28px var(--shadow);
+      font-size: 10px; line-height: 1.9; text-align: center; text-wrap: balance;
+      opacity: 0; transform: translateY(6px) scale(.96); pointer-events: none;
+      transition: opacity 180ms ease, transform 220ms ease;
+    }
+    .sticker-message.visible { opacity: 1; transform: translateY(0) scale(1); }
+    @keyframes sway { 0%, 100% { transform: rotate(-15deg); } 50% { transform: rotate(15deg); } }
+    @keyframes float { 50% { transform: translateY(-7px); } }
+    .particles { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 30; }
+    .particle { position: absolute; line-height: 1; font-family: sans-serif; will-change: transform, opacity; }
+    @media (max-width: 480px) {
+      .question-content { gap: 18px; }
+      .success-content { gap: 22px; }
+      .success-content h2 { font-size: 12px; }
+      .eyebrow { letter-spacing: 0; }
+    }
+    @media (max-height: 650px) {
+      .question-content { gap: 12px; }
+      #question-cat { width: clamp(90px, 24dvh, 156px); }
+      .speech { padding: 8px 12px; }
+      #question-screen .eyebrow, #question-screen .hint { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .sad .tear-one, .sad[data-level="2"] .tear-two, .sad[data-level="3"] .tear-two { opacity: .85; }
+    }
+  </style>
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"></div>
+  <div class="pattern" aria-hidden="true"></div>
+  <main>
+    <section id="question-screen" class="screen" aria-labelledby="question">
+      <div class="question-content">
+        <p class="eyebrow" data-avoid>A LITTLE QUESTION FOR YOU</p>
+        <h1 id="question" data-avoid>Would you like to go watch<br>a movie together?</h1>
+        <div class="mascot-area" data-avoid>
+          <p id="speech" class="speech" aria-live="polite" aria-atomic="true">Hmm…?</p>
+          <div id="question-cat" class="mascot"></div>
+        </div>
+        <div class="buttons" data-avoid>
+          <div class="button-slot"><button id="yesBtn" class="answer yes">Yes</button></div>
+          <div class="button-slot"><button id="noBtn" class="answer no">No</button></div>
+        </div>
+        <p class="hint" data-avoid>One movie. Two happy hearts.</p>
+      </div>
+    </section>
+    <section id="success-screen" class="screen" aria-labelledby="success-title" hidden>
+      <div id="stickers" class="stickers"></div>
+      <div class="success-content">
+        <p class="eyebrow">IT’S A DATE!</p>
+        <h2 id="success-title" tabindex="-1">Yay! Thank you 💖</h2>
+        <div id="success-cat" class="mascot happy"></div>
+        <p class="success-note">You + me + a movie.<br>Sounds pretty perfect.</p>
+        <p class="hint">Tap a little sticker ✨</p>
+      </div>
+    </section>
+  </main>
+  <p id="sticker-message" class="sticker-message" role="status" aria-live="polite" aria-atomic="true"></p>
+  <div id="particles" class="particles" aria-hidden="true"></div>
+
+  <!-- A shared pixel-art kitten, drawn entirely with stepped SVG paths. -->
+  <template id="cat-template">
+    <svg class="cat" viewBox="0 0 300 300" shape-rendering="crispEdges" role="img"
+         aria-label="A curious cream pixel-art kitten with a pink bow">
+      <g class="cat-float"><g class="cat-wobble"><g class="cat-tilt">
+        <!-- Tail, little body, belly, and paws -->
+        <path class="fur" d="M216 234 H240 V222 H252 V210 H264 V216 H270 V240 H264 V252 H252 V264 H216 Z"/>
+        <path class="fur" d="M108 210 H192 V222 H210 V240 H222 V270 H210 V282 H90 V270 H78 V240 H90 V222 H108 Z"/>
+        <path fill="var(--fur-shadow)" d="M126 234 H174 V240 H186 V264 H174 V276 H126 V264 H114 V240 H126 Z"/>
+        <path class="fur" d="M84 258 H114 V264 H126 V282 H78 V264 H84 Z"/>
+        <path class="fur" d="M186 258 H216 V264 H222 V282 H174 V264 H186 Z"/>
+        <path fill="var(--cat-line)" d="M90 270 H96 V282 H90 Z M108 270 H114 V282 H108 Z M186 270 H192 V282 H186 Z M204 270 H210 V282 H204 Z"/>
+
+        <!-- Stepped ears keep their existing happy/sad animations. -->
+        <g class="ear ear-left">
+          <path class="fur" d="M54 126 V54 H72 V66 H84 V78 H96 V90 H114 V126 Z"/>
+          <path class="ear-inner" d="M66 108 V72 H72 V84 H84 V96 H96 V108 Z"/>
+        </g>
+        <g class="ear ear-right">
+          <path class="fur" d="M186 126 V90 H204 V78 H216 V66 H228 V54 H246 V126 Z"/>
+          <path class="ear-inner" d="M204 108 V96 H216 V84 H228 V72 H234 V108 Z"/>
+        </g>
+
+        <!-- Soft round silhouette, expressed as chunky pixel steps. -->
+        <path class="fur" d="M102 84 H198 V90 H222 V102 H240 V120 H252 V144 H258 V192 H252 V210 H240 V222 H222 V234 H198 V240 H102 V234 H78 V222 H60 V210 H48 V192 H42 V144 H48 V120 H60 V102 H78 V90 H102 Z"/>
+        <path fill="var(--fur-shadow)" d="M54 198 H66 V210 H84 V222 H108 V228 H192 V222 H216 V210 H234 V198 H246 V210 H240 V222 H222 V234 H198 V240 H102 V234 H78 V222 H60 V210 H54 Z"/>
+        <path fill="var(--eye-white)" d="M108 96 H174 V102 H108 Z M84 102 H108 V108 H84 Z"/>
+        <path class="blush" d="M60 180 H84 V186 H90 V198 H60 V192 H54 V186 H60 Z"/>
+        <path class="blush" d="M216 180 H240 V186 H246 V192 H240 V198 H210 V186 H216 Z"/>
+
+        <g class="open-eyes">
+          <g class="eye-shape"><g class="blink">
+            <path class="eye-white" d="M90 126 H114 V132 H126 V174 H114 V180 H90 V174 H78 V132 H90 Z"/>
+            <g class="gaze">
+              <path class="pupil" d="M96 132 H108 V138 H114 V168 H108 V174 H96 V168 H90 V138 H96 Z"/>
+              <rect class="shine" x="90" y="138" width="12" height="12"/>
+              <rect class="shine" x="108" y="156" width="6" height="6"/>
+            </g>
+            <path class="extra-shine" fill="var(--tear)" d="M84 168 H90 V174 H114 V168 H120 V180 H84 Z"/>
+          </g></g>
+          <g class="eye-shape"><g class="blink">
+            <path class="eye-white" d="M186 126 H210 V132 H222 V174 H210 V180 H186 V174 H174 V132 H186 Z"/>
+            <g class="gaze">
+              <path class="pupil" d="M192 132 H204 V138 H210 V168 H204 V174 H192 V168 H186 V138 H192 Z"/>
+              <rect class="shine" x="186" y="138" width="12" height="12"/>
+              <rect class="shine" x="204" y="156" width="6" height="6"/>
+            </g>
+            <path class="extra-shine" fill="var(--tear)" d="M180 168 H186 V174 H210 V168 H216 V180 H180 Z"/>
+          </g></g>
+        </g>
+
+        <!-- Happy eyes still follow the pointer along with the normal pupils. -->
+        <g class="happy-eyes gaze" fill="var(--eye)">
+          <path d="M78 156 V144 H84 V138 H90 V132 H114 V138 H120 V144 H126 V156 H120 V150 H114 V144 H108 V138 H96 V144 H90 V150 H84 V156 Z"/>
+          <path d="M174 156 V144 H180 V138 H186 V132 H210 V138 H216 V144 H222 V156 H216 V150 H210 V144 H204 V138 H192 V144 H186 V150 H180 V156 Z"/>
+        </g>
+        <path class="brow brow-left line" d="M84 114 H102 V108 H114 V102 H120"/>
+        <path class="brow brow-right line" d="M180 102 H186 V108 H198 V114 H216"/>
+        <path fill="var(--bow-dark)" d="M138 180 H162 V186 H156 V192 H144 V186 H138 Z"/>
+        <path class="idle-mouth line" d="M132 198 V204 H144 V198 H156 V204 H168 V198"/>
+        <path class="sad-mouth line" d="M132 210 V204 H138 V198 H162 V204 H168 V210"/>
+        <g class="happy-mouth">
+          <path fill="var(--eye)" d="M132 198 H168 V216 H162 V222 H138 V216 H132 Z"/>
+          <path fill="var(--mouth)" d="M138 210 H162 V222 H138 Z"/>
+          <rect fill="var(--blush)" x="144" y="210" width="12" height="6"/>
+        </g>
+        <path class="tear tear-one" fill="var(--tear)" d="M78 180 H84 V186 H90 V204 H84 V210 H78 V204 H72 V186 H78 Z"/>
+        <path class="tear tear-two" fill="var(--tear)" d="M216 180 H222 V186 H228 V204 H222 V210 H216 V204 H210 V186 H216 Z"/>
+        <g class="sniff">
+          <path fill="var(--bubble)" d="M234 204 H276 V210 H282 V228 H276 V234 H234 V228 H228 V210 H234 Z"/>
+          <text x="255" y="221" text-anchor="middle" font-size="8" fill="var(--ink)">sniff</text>
+        </g>
+
+        <!-- Pink pixel bow -->
+        <g fill="var(--bow)" stroke="var(--bow-dark)" stroke-width="6" stroke-linejoin="miter">
+          <path d="M198 84 H186 V78 H174 V72 H162 V102 H174 V108 H186 V102 H198 Z"/>
+          <path d="M210 84 H222 V78 H234 V72 H246 V102 H234 V108 H222 V102 H210 Z"/>
+          <path d="M198 78 H210 V84 H216 V96 H210 V102 H198 V96 H192 V84 H198 Z"/>
+        </g>
+        <path fill="var(--pink)" d="M168 78 H174 V96 H168 Z M228 84 H240 V90 H228 Z M198 84 H204 V90 H198 Z"/>
+        <path fill="var(--cat-line)" d="M30 180 H54 V186 H30 Z M24 198 H48 V204 H24 Z M246 180 H270 V186 H246 Z M252 198 H276 V204 H252 Z"/>
+      </g></g></g>
+    </svg>
+  </template>
+  <script>
+    (() => {
+      'use strict';
+      const $ = selector => document.querySelector(selector);
+      const question = $('#question-screen'), success = $('#success-screen');
+      const yesBtn = $('#yesBtn'), noBtn = $('#noBtn'), speech = $('#speech');
+      const questionCat = $('#question-cat'), successCat = $('#success-cat');
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+      const cats = [questionCat, successCat];
+      cats.forEach(cat => cat.append($('#cat-template').content.cloneNode(true)));
+      successCat.querySelector('svg').setAttribute('aria-label', 'A delighted cream pixel-art kitten with a pink bow and smiling eyes');
+      let level = 0, switching = false, celebrating = false, runaway = false;
+      const rand = (min, max) => min + Math.random() * (max - min);
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const viewport = () => {
+        const v = window.visualViewport;
+        return { x: v ? v.offsetLeft : 0, y: v ? v.offsetTop : 0,
+          width: v ? v.width : innerWidth, height: v ? v.height : innerHeight };
+      };
+
+      /* Runaway button: random fixed position, clear of the content. */
+      function moveNo() {
+        if (!runaway || switching) return;
+        const v = viewport(), w = noBtn.offsetWidth, h = noBtn.offsetHeight;
+        const minX = v.x + 20, minY = v.y + 20;
+        const maxX = Math.max(minX, v.x + v.width - w - 20);
+        const maxY = Math.max(minY, v.y + v.height - h - 20);
+        const obstacles = [...question.querySelectorAll('[data-avoid]')].map(el => el.getBoundingClientRect());
+        const clear = (x, y) => obstacles.every(r => x + w + 12 < r.left || x - 12 > r.right || y + h + 12 < r.top || y - 12 > r.bottom);
+        let position;
+        for (let i = 0; i < 160; i++) {
+          const x = rand(minX, maxX), y = rand(minY, maxY);
+          if (clear(x, y)) { position = {x, y}; break; }
+        }
+        if (!position) {
+          // Search the reserved top/bottom space if random sampling missed it.
+          for (let y = minY; y <= maxY && !position; y += 8) {
+            for (let x = minX; x <= maxX; x += 8) {
+              if (clear(x, y)) { position = {x, y}; break; }
+            }
+          }
+        }
+        if (!position) position = {x: minX, y: minY};
+        noBtn.style.left = position.x + 'px'; noBtn.style.top = position.y + 'px';
+      }
+      noBtn.addEventListener('click', () => {
+        if (switching) return;
+        level = Math.min(level + 1, 3);
+        questionCat.classList.add('sad'); questionCat.dataset.level = level;
+        speech.textContent = ['Hmm…?', 'Please…?', 'Pretty please…?', 'One little movie…?'][level];
+        questionCat.querySelector('svg').setAttribute('aria-label', `A sad pixel-art kitten, sadness level ${level} of 3, with drooping ears and tears`);
+        questionCat.classList.remove('reacting');
+        requestAnimationFrame(() => questionCat.classList.add('reacting'));
+        if (!runaway) {
+          noBtn.style.width = noBtn.offsetWidth + 'px';
+          noBtn.style.position = 'fixed'; runaway = true;
+        }
+        moveNo();
+      });
+      questionCat.addEventListener('animationend', e => {
+        if (e.animationName === 'wobble') questionCat.classList.remove('reacting');
+      });
+      window.addEventListener('resize', moveNo);
+      window.addEventListener('scroll', moveNo, {passive: true});
+      window.visualViewport?.addEventListener('resize', moveNo);
+      window.visualViewport?.addEventListener('scroll', moveNo);
+
+      /* Lightweight particles. Every animation removes its own element. */
+      const particleLayer = $('#particles');
+      const colors = ['var(--pink)', 'var(--blush)', 'var(--cream)', 'var(--gold)', 'var(--lavender)'];
+      function particle(x, y, symbol, dx, dy, duration, confetti = false) {
+        if (reduced.matches || document.hidden || particleLayer.childElementCount >= 100) return;
+        const p = document.createElement('span'); p.className = 'particle'; p.textContent = symbol;
+        Object.assign(p.style, {left: x + 'px', top: y + 'px', color: colors[Math.floor(rand(0, colors.length))], fontSize: rand(10, 22) + 'px'});
+        particleLayer.append(p);
+        const animation = p.animate([
+          {transform: 'translate(-50%, -50%) scale(.5) rotate(0deg)', opacity: 0},
+          {opacity: 1, offset: .15},
+          {transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${confetti ? .7 : 1.15}) rotate(${rand(-160, 160)}deg)`, opacity: 0}
+        ], {duration, easing: 'cubic-bezier(.15,.65,.35,1)', fill: 'forwards'});
+        animation.finished.then(() => p.remove(), () => p.remove());
+      }
+      function burst(x, y, count = 9) {
+        for (let i = 0; i < count; i++) particle(x, y, i % 3 ? '♥' : '✦', rand(-95, 95), rand(-140, -35), rand(650, 1200));
+      }
+      function confetti() {
+        for (let i = 0; i < 65; i++) particle(rand(0, innerWidth), rand(-30, innerHeight * .2), i % 4 ? '▪' : '♥', rand(-100, 100), rand(innerHeight * .5, innerHeight), rand(1700, 2900), true);
+      }
+      yesBtn.addEventListener('click', () => {
+        if (switching) return;
+        switching = true; yesBtn.disabled = noBtn.disabled = true;
+        noBtn.style.visibility = 'hidden';
+        questionCat.classList.remove('sad', 'reacting'); questionCat.classList.add('happy');
+        questionCat.querySelector('svg').setAttribute('aria-label', 'A delighted pixel-art kitten with happy eyes and a big smile');
+        speech.textContent = 'Yay!!';
+        const r = questionCat.getBoundingClientRect(); burst(r.x + r.width / 2, r.y + r.height / 2, 18);
+        setTimeout(() => {
+          question.classList.add('leaving'); document.body.classList.add('celebrating');
+          setTimeout(() => {
+            question.hidden = true; question.inert = true; success.hidden = false; celebrating = true;
+            window.scrollTo({top: 0, behavior: 'instant'});
+            $('#success-title').focus({preventScroll: true});
+            scatterStickers(); confetti(); scheduleTracking();
+          }, reduced.matches ? 0 : 350);
+        }, reduced.matches ? 200 : 750);
+      });
+
+      /* Each sticker has its own message and an irregular preferred position. */
+      const stickerList = [
+        ['🎀', 'Ribbon bow', 'You tie my whole day together.', .12, .12],
+        ['💖', 'Sparkling heart', 'My heart saved you the best seat.', .43, .07],
+        ['🍓', 'Strawberry', 'You make ordinary days berry sweet.', .76, .14],
+        ['🌸', 'Cherry blossom', 'A little time with you makes me bloom.', .91, .32],
+        ['🦋', 'Butterfly', 'Still getting butterflies. Yes, because of you.', .08, .39],
+        ['🧸', 'Teddy bear', 'One tiny bear hug, just for you.', .22, .64],
+        ['🧁', 'Cupcake', 'The sweetest part of tonight? You.', .84, .57],
+        ['🧋', 'Boba tea', 'You are my favourite sip of happiness.', .10, .84],
+        ['⭐', 'Star', 'You outshine every star in the credits.', .29, .93],
+        ['☁️', 'Cloud', 'On cloud nine, and saving you a spot.', .94, .79],
+        ['🍿', 'Popcorn', 'I will share my popcorn. That is serious.', .65, .92],
+        ['🎟️', 'Movie tickets', 'Admit two: you, me, and a lovely memory.', .83, .94],
+        ['🎬', 'Clapperboard', 'My favourite scene starts with us.', .29, .23],
+        ['🌙', 'Moon', 'One movie with you could light up my night.', .69, .29]
+      ];
+      const anchors = [];
+      const messageBubble = $('#sticker-message');
+      let messageTimer;
+
+      function showStickerMessage(emoji, message, button) {
+        clearTimeout(messageTimer);
+        messageBubble.textContent = `${emoji} ${message}`;
+        // Measure without animation transforms so edge clamping is exact.
+        const width = messageBubble.offsetWidth, height = messageBubble.offsetHeight;
+        const r = button.getBoundingClientRect(), v = viewport();
+        const left = clamp(r.left + r.width / 2 - width / 2, v.x + 16, v.x + v.width - width - 16);
+        let top = r.top - height - 17;
+        if (top < v.y + 16) top = r.bottom + 17;
+        top = clamp(top, v.y + 16, v.y + v.height - height - 16);
+        messageBubble.style.left = left + 'px'; messageBubble.style.top = top + 'px';
+        messageBubble.classList.add('visible');
+        messageTimer = setTimeout(() => messageBubble.classList.remove('visible'), 4200);
+      }
+
+      /* Scatter over the whole page, avoiding both content and neighbouring stickers.
+         Stable candidate positions prevent stickers jumping randomly on resize. */
+      function scatterStickers() {
+        if (!celebrating) return;
+        const bounds = success.getBoundingClientRect();
+        const width = success.clientWidth, height = success.clientHeight;
+        const obstacles = [...success.querySelector('.success-content').children].map(el => {
+          const r = el.getBoundingClientRect();
+          return {left: r.left - bounds.left, right: r.right - bounds.left,
+            top: r.top - bounds.top, bottom: r.bottom - bounds.top};
+        });
+        const placed = [], inset = width < 480 ? 29 : 40;
+        const padding = width < 480 ? 27 : 40;
+        anchors.forEach(({element, preferredX, preferredY}, index) => {
+          const target = {x: clamp(width * preferredX, inset, width - inset),
+            y: clamp(height * preferredY, inset, height - inset)};
+          const candidates = [target];
+          for (let j = 0; j < 900; j++) {
+            candidates.push({
+              x: inset + ((j * .61803398875 + index * .137) % 1) * (width - inset * 2),
+              y: inset + ((j * .41421356237 + index * .193) % 1) * (height - inset * 2)
+            });
+          }
+          const clear = candidates.filter(p => obstacles.every(r =>
+            p.x + padding < r.left || p.x - padding > r.right ||
+            p.y + padding < r.top || p.y - padding > r.bottom));
+          let best, bestScore = Infinity;
+          // Prefer roomy spacing; relax only on especially small screens.
+          for (const spacing of [width < 480 ? 61 : 84, 54, 46]) {
+            for (const p of clear) {
+              if (placed.some(q => Math.hypot(p.x - q.x, p.y - q.y) < spacing)) continue;
+              const score = ((p.x - target.x) / width) ** 2 + ((p.y - target.y) / height) ** 2;
+              if (score < bestScore) { best = p; bestScore = score; }
+            }
+            if (best) break;
+          }
+          // Graceful fallback for extreme zoom: keep every emoji reachable.
+          best ||= clear[0] || target;
+          element.style.left = best.x + 'px'; element.style.top = best.y + 'px';
+          placed.push(best);
+        });
+      }
+
+      stickerList.forEach(([emoji, label, message, preferredX, preferredY]) => {
+        const anchor = document.createElement('div'); anchor.className = 'sticker-anchor';
+        anchor.style.setProperty('--duration', rand(2.5, 4.5) + 's');
+        anchor.style.setProperty('--delay', -rand(0, 5) + 's');
+        anchor.style.setProperty('--size', `clamp(24px, ${rand(3, 4.3)}vw, ${rand(34, 42)}px)`);
+        const float = document.createElement('div'); float.className = 'sticker-float';
+        const button = document.createElement('button'); button.className = 'sticker';
+        button.setAttribute('aria-label', `${label}: reveal a little message`);
+        const icon = document.createElement('span'); icon.className = 'sticker-icon';
+        icon.setAttribute('aria-hidden', 'true'); icon.textContent = emoji;
+        button.append(icon); float.append(button); anchor.append(float); $('#stickers').append(anchor);
+        anchors.push({element: anchor, depth: rand(2, 6), preferredX, preferredY});
+        button.addEventListener('click', e => {
+          e.stopPropagation();
+          showStickerMessage(emoji, message, button);
+          if (button.classList.contains('popped')) return;
+          const r = button.getBoundingClientRect(); burst(r.x + r.width / 2, r.y + r.height / 2);
+          button.classList.add('popped');
+          setTimeout(() => button.classList.remove('popped'), 650);
+        });
+      });
+      let scatterFrame = 0;
+      function queueScatter() {
+        cancelAnimationFrame(scatterFrame);
+        scatterFrame = requestAnimationFrame(scatterStickers);
+        messageBubble.classList.remove('visible');
+      }
+      window.addEventListener('resize', queueScatter);
+      window.visualViewport?.addEventListener('resize', queueScatter);
+      window.addEventListener('scroll', () => messageBubble.classList.remove('visible'), {passive: true});
+      success.querySelector('.success-content').addEventListener('animationend', e => {
+        if (e.animationName === 'entrance') scatterStickers();
+      });
+      new ResizeObserver(queueScatter).observe(success.querySelector('.success-content'));
+      document.fonts.ready.then(queueScatter);
+      success.addEventListener('click', e => {
+        if (!e.target.closest('button')) burst(e.clientX, e.clientY, 6);
+      });
+
+      /* One easing loop for gaze and parallax; returns to centre after inactivity. */
+      let pointerX = innerWidth / 2, pointerY = innerHeight / 2, lastMove = 0, lastTrail = 0, frame = 0;
+      let gazeX = 0, gazeY = 0, panX = 0, panY = 0;
+      let previousFrame = 0;
+      const gazeGroups = cats.map(cat => [...cat.querySelectorAll('.gaze')]);
+      // The pixel drawing stays upright so its stepped edges remain crisp.
+      function scheduleTracking() { if (!frame) frame = requestAnimationFrame(track); }
+      function track(now) {
+        frame = 0;
+        if (document.hidden) return;
+        const active = now - lastMove < 1500;
+        const index = celebrating ? 1 : 0;
+        const rect = cats[index].getBoundingClientRect();
+        const dx = pointerX - (rect.left + rect.width / 2), dy = pointerY - (rect.top + rect.height * .5);
+        const distance = Math.hypot(dx, dy) || 1;
+        const reach = active ? Math.min(distance / 150, 1) : 0;
+        const targetX = dx / distance * 5 * reach, targetY = dy / distance * 4 * reach;
+        const easing = reduced.matches ? 1 : 1 - Math.exp(-Math.min(now - previousFrame || 16, 50) / 95);
+        previousFrame = now;
+        gazeX += (targetX - gazeX) * easing; gazeY += (targetY - gazeY) * easing;
+        gazeGroups[index].forEach(g => g.setAttribute('transform', `translate(${gazeX.toFixed(2)} ${gazeY.toFixed(2)})`));
+        const tx = active && !reduced.matches ? clamp(pointerX / innerWidth * 2 - 1, -1, 1) : 0;
+        const ty = active && !reduced.matches ? clamp(pointerY / innerHeight * 2 - 1, -1, 1) : 0;
+        panX += (tx - panX) * easing; panY += (ty - panY) * easing;
+        if (celebrating) anchors.forEach(({element, depth}) => element.style.transform = `translate(${panX * depth}px, ${panY * depth}px)`);
+        if (active || Math.abs(gazeX) + Math.abs(gazeY) + Math.abs(panX) + Math.abs(panY) > .02) scheduleTracking();
+      }
+      function pointer(x, y) {
+        pointerX = x; pointerY = y; lastMove = performance.now(); scheduleTracking();
+        if (celebrating && lastMove - lastTrail > 110) {
+          lastTrail = lastMove; particle(x, y, Math.random() > .5 ? '✧' : '♡', rand(-15, 15), -40, 650);
+        }
+      }
+      window.addEventListener('mousemove', e => pointer(e.clientX, e.clientY), {passive: true});
+      ['touchstart', 'touchmove'].forEach(type => window.addEventListener(type, e => {
+        if (e.touches[0]) pointer(e.touches[0].clientX, e.touches[0].clientY);
+      }, {passive: true}));
+      document.documentElement.addEventListener('mouseleave', () => { lastMove = 0; scheduleTracking(); });
+      document.addEventListener('visibilitychange', () => {
+        lastMove = 0;
+        if (document.hidden) { cancelAnimationFrame(frame); frame = 0; particleLayer.replaceChildren(); }
+        else scheduleTracking();
+      });
+      function blinkLater() {
+        setTimeout(() => {
+          const cat = celebrating ? successCat : questionCat;
+          if (!document.hidden && !reduced.matches && !cat.classList.contains('happy')) {
+            cat.classList.add('blinking'); setTimeout(() => cat.classList.remove('blinking'), 180);
+          }
+          blinkLater();
+        }, rand(3000, 5000));
+      }
+      blinkLater();
+    })();
+  </script>
+</body>
+</html>
